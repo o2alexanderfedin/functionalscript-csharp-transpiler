@@ -210,26 +210,26 @@ namespace FunctionalScript.Transpiler
             var rightType = new PrimitiveType("object");
             
             var resultType = typeEngine.InferBinaryOp(op, leftType, rightType);
-            var expr = "";
+            var binaryExpr = "";
             
             // Special handling for certain operators
             switch (op)
             {
                 case "===":
-                    expr = $"object.Equals({left}, {right})";
+                    binaryExpr = $"object.Equals({left}, {right})";
                     break;
                 case "!==":
-                    expr = $"!object.Equals({left}, {right})";
+                    binaryExpr = $"!object.Equals({left}, {right})";
                     break;
                 case "??":
-                    expr = $"({left} ?? {right})";
+                    binaryExpr = $"({left} ?? {right})";
                     break;
                 default:
-                    expr = $"({left} {op} {right})";
+                    binaryExpr = $"({left} {op} {right})";
                     break;
             }
             
-            PushTypedExpr(expr, resultType);
+            PushTypedExpr(binaryExpr, resultType);
         }
         
         public void PushUnaryOp(string op, string operand)
@@ -249,8 +249,8 @@ namespace FunctionalScript.Transpiler
         {
             if (!useStrongTypes)
             {
-                var expr = $"new dynamic[] {{ {string.Join(", ", elements)} }}";
-                PushExpr(expr);
+                var arrayExpr = $"new dynamic[] {{ {string.Join(", ", elements)} }}";
+                PushExpr(arrayExpr);
                 return;
             }
             
@@ -264,9 +264,9 @@ namespace FunctionalScript.Transpiler
             
             var arrayType = typeEngine.InferArrayType(elementTypes);
             var elementType = (arrayType as ArrayType)?.ElementType.ToCSharpType() ?? "object";
-            var expr = $"new {elementType}[] {{ {string.Join(", ", elements)} }}";
+            var typedArrayExpr = $"new {elementType}[] {{ {string.Join(", ", elements)} }}";
             
-            PushTypedExpr(expr, arrayType);
+            PushTypedExpr(typedArrayExpr, arrayType);
         }
         
         public void PushObject(Dictionary<string, string> fields)
@@ -274,8 +274,8 @@ namespace FunctionalScript.Transpiler
             if (!useStrongTypes)
             {
                 var fieldList = fields.Select(f => $"{{ \"{f.Key}\", {f.Value} }}");
-                var expr = $"FunctionalScript.Runtime.CreateObject(new Dictionary<string, object> {{ {string.Join(", ", fieldList)} }})";
-                PushExpr(expr);
+                var objExpr = $"FunctionalScript.Runtime.CreateObject(new Dictionary<string, object> {{ {string.Join(", ", fieldList)} }})";
+                PushExpr(objExpr);
                 return;
             }
             
@@ -299,9 +299,9 @@ namespace FunctionalScript.Transpiler
             
             // Create instance
             var ctorArgs = string.Join(", ", fields.Values);
-            var expr = $"new {typeName}({ctorArgs})";
+            var instanceExpr = $"new {typeName}({ctorArgs})";
             
-            PushTypedExpr(expr, objType);
+            PushTypedExpr(instanceExpr, objType);
         }
         
         public void PushTernary(string condition, string trueExpr, string falseExpr)
@@ -317,9 +317,9 @@ namespace FunctionalScript.Transpiler
             var falseType = new PrimitiveType("object");
             
             var resultType = typeEngine.InferTernary(TypeInferenceEngine.Bool, trueType, falseType);
-            var expr = $"({condition}) ? ({trueExpr}) : ({falseExpr})";
+            var ternaryExpr = $"({condition}) ? ({trueExpr}) : ({falseExpr})";
             
-            PushTypedExpr(expr, resultType);
+            PushTypedExpr(ternaryExpr, resultType);
         }
     }
 }

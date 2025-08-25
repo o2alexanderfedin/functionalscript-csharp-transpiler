@@ -8,14 +8,41 @@ namespace FunctionalScript.Transpiler
 {
     public class CodeGenerator
     {
-        private StringBuilder output = new StringBuilder();
+        private StringBuilder usings = new StringBuilder();
+        private StringBuilder moduleContent = new StringBuilder();
         private Dictionary<string, string> imports = new Dictionary<string, string>();
         private Dictionary<string, object> constants = new Dictionary<string, object>();
         private Stack<StringBuilder> exprStack = new Stack<StringBuilder>();
         private int tempVarCounter = 0;
         private string moduleName = "Module";
         
-        public string GetOutput() => output.ToString();
+        public string GetOutput()
+        {
+            var output = new StringBuilder();
+            
+            // Add using statements
+            output.Append(usings);
+            
+            // Add imports as comments
+            foreach (var import in imports)
+            {
+                output.AppendLine($"// import {import.Key} from \"{import.Value}\"");
+            }
+            
+            // Add namespace and class
+            output.AppendLine();
+            output.AppendLine($"namespace FunctionalScript.Generated {{");
+            output.AppendLine($"    public static class {moduleName} {{");
+            
+            // Add module content
+            output.Append(moduleContent);
+            
+            // Close class and namespace
+            output.AppendLine("    }");
+            output.AppendLine("}");
+            
+            return output.ToString();
+        }
         
         public void AddImport(string name, string path)
         {
@@ -24,30 +51,26 @@ namespace FunctionalScript.Transpiler
         
         public void AddConstant(string name, string value)
         {
-            output.AppendLine($"        public static readonly dynamic {name} = {value};");
+            moduleContent.AppendLine($"        public static readonly dynamic {name} = {value};");
         }
         
         public void SetExportDefault(string expr)
         {
-            output.AppendLine($"        public static dynamic Default => {expr};");
+            moduleContent.AppendLine($"        public static dynamic Default => {expr};");
         }
         
         public void StartModule()
         {
-            output.AppendLine("using System;");
-            output.AppendLine("using System.Collections.Generic;");
-            output.AppendLine("using System.Numerics;");
-            output.AppendLine("using System.Linq;");
-            output.AppendLine("using System.Dynamic;");
-            output.AppendLine();
-            output.AppendLine($"namespace FunctionalScript.Generated {{");
-            output.AppendLine($"    public static class {moduleName} {{");
+            usings.AppendLine("using System;");
+            usings.AppendLine("using System.Collections.Generic;");
+            usings.AppendLine("using System.Numerics;");
+            usings.AppendLine("using System.Linq;");
+            usings.AppendLine("using System.Dynamic;");
         }
         
         public void EndModule()
         {
-            output.AppendLine("    }");
-            output.AppendLine("}");
+            // Nothing to do here anymore, GetOutput handles everything
         }
         
         public string GetTempVar()

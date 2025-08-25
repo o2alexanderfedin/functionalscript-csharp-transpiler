@@ -64,10 +64,15 @@ FunctionalScript                           (. gen.StartModule(); .)
 .
 
 ImportStatement
-= import ident                             (. string name = t.val; .)
-  "from" string                             (. gen.AddImport(name, t.val.Trim('"', '\'')); .)
-| import '*' "as" ident                    (. string name = t.val; .)
-  "from" string                             (. gen.AddImport(name, t.val.Trim('"', '\'')); .)
+= import                                   (. string name = ""; .)
+  ( ident                                  (. name = t.val; .)
+    ident                                  (. if (t.val != "from") SemErr("'from' expected"); .)
+    string                                 (. gen.AddImport(name, t.val.Trim('"', '\'')); .)
+  | '*' ident                              (. if (t.val != "as") SemErr("'as' expected"); .)
+    ident                                  (. name = t.val; .)
+    ident                                  (. if (t.val != "from") SemErr("'from' expected"); .)
+    string                                 (. gen.AddImport(name, t.val.Trim('"', '\'')); .)
+  )
 .
 
 ExportStatement

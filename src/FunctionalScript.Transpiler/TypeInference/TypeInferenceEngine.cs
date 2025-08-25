@@ -8,10 +8,13 @@ namespace FunctionalScript.Transpiler.TypeInference
     /// <summary>
     /// Represents a type in the FunctionalScript type system
     /// </summary>
-    public abstract class FSType
+    public abstract class FSType : IEquatable<FSType>
     {
         public abstract string ToCSharpType();
         public abstract bool IsCompatibleWith(FSType other);
+        public abstract bool Equals(FSType? other);
+        public override bool Equals(object? obj) => obj is FSType type && Equals(type);
+        public override abstract int GetHashCode();
     }
 
     /// <summary>
@@ -41,6 +44,13 @@ namespace FunctionalScript.Transpiler.TypeInference
         }
         
         public override string ToString() => TypeName;
+        
+        public override bool Equals(FSType? other)
+        {
+            return other is PrimitiveType p && TypeName == p.TypeName;
+        }
+        
+        public override int GetHashCode() => TypeName.GetHashCode();
     }
 
     /// <summary>
@@ -63,6 +73,13 @@ namespace FunctionalScript.Transpiler.TypeInference
         }
         
         public override string ToString() => $"Array<{ElementType}>";
+        
+        public override bool Equals(FSType? other)
+        {
+            return other is ArrayType a && ElementType.Equals(a.ElementType);
+        }
+        
+        public override int GetHashCode() => HashCode.Combine("Array", ElementType);
     }
 
     /// <summary>
@@ -105,6 +122,29 @@ namespace FunctionalScript.Transpiler.TypeInference
         
         public override string ToString() => 
             $"{{ {string.Join(", ", Fields.Select(f => $"{f.Key}: {f.Value}"))} }}";
+        
+        public override bool Equals(FSType? other)
+        {
+            if (other is not ObjectType o) return false;
+            if (Fields.Count != o.Fields.Count) return false;
+            foreach (var field in Fields)
+            {
+                if (!o.Fields.TryGetValue(field.Key, out var otherType) || !field.Value.Equals(otherType))
+                    return false;
+            }
+            return true;
+        }
+        
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            foreach (var field in Fields.OrderBy(f => f.Key))
+            {
+                hash.Add(field.Key);
+                hash.Add(field.Value);
+            }
+            return hash.ToHashCode();
+        }
     }
 
     /// <summary>
@@ -139,6 +179,23 @@ namespace FunctionalScript.Transpiler.TypeInference
         
         public override string ToString() => 
             string.Join(" | ", Types.Select(t => t.ToString()));
+        
+        public override bool Equals(FSType? other)
+        {
+            if (other is not UnionType u) return false;
+            return Types.Count == u.Types.Count && 
+                   Types.All(t => u.Types.Any(ut => t.Equals(ut)));
+        }
+        
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            foreach (var type in Types.OrderBy(t => t.ToString()))
+            {
+                hash.Add(type);
+            }
+            return hash.ToHashCode();
+        }
     }
 
     /// <summary>
@@ -199,14 +256,19 @@ namespace FunctionalScript.Transpiler.TypeInference
             if (elementTypes.Count == 0)
                 return new ArrayType(new PrimitiveType("object"));
             
+            // Check for numeric unification first (int + double = double)
+            if (elementTypes.All(t => (t is PrimitiveType p && (p.TypeName == "int" || p.TypeName == "double"))))
+            {
+                // If any element is double, the whole array should be double[]
+                if (elementTypes.Any(t => t is PrimitiveType p && p.TypeName == "double"))
+                    return new ArrayType(Double);
+                return new ArrayType(Int);
+            }
+            
             // Check if all elements have the same type
             var firstType = elementTypes[0];
-            if (elementTypes.All(t => t.IsCompatibleWith(firstType)))
+            if (elementTypes.All(t => t.Equals(firstType)))
                 return new ArrayType(firstType);
-            
-            // Check for numeric unification (int + double = double)
-            if (elementTypes.All(t => t == Int || t == Double))
-                return new ArrayType(Double);
             
             // Mixed types - create union type
             var uniqueTypes = elementTypes.Distinct().ToList();
@@ -226,19 +288,34 @@ namespace FunctionalScript.Transpiler.TypeInference
                 // Arithmetic operators
                 case "+":
                     // String concatenation
-                    if (left == String || right == String)
+                    if ((left is PrimitiveType lp && lp.TypeName == "string") || 
+                        (right is PrimitiveType rp && rp.TypeName == "string"))
                         return String;
                     // Numeric addition
-                    if ((left == Int || left == Double) && (right == Int || right == Double))
-                        return (left == Double || right == Double) ? Double : Int;
+                    if (left is PrimitiveType leftPrim && right is PrimitiveType rightPrim)
+                    {
+                        if ((leftPrim.TypeName == "int" || leftPrim.TypeName == "double") && 
+                            (rightPrim.TypeName == "int" || rightPrim.TypeName == "double"))
+                        {
+                            return (leftPrim.TypeName == "double" || rightPrim.TypeName == "double") 
+                                ? Double : Int;
+                        }
+                    }
                     break;
                     
                 case "-":
                 case "*":
                 case "/":
                 case "%":
-                    if ((left == Int || left == Double) && (right == Int || right == Double))
-                        return (left == Double || right == Double || op == "/") ? Double : Int;
+                    if (left is PrimitiveType leftP && right is PrimitiveType rightP)
+                    {
+                        if ((leftP.TypeName == "int" || leftP.TypeName == "double") && 
+                            (rightP.TypeName == "int" || rightP.TypeName == "double"))
+                        {
+                            return (leftP.TypeName == "double" || rightP.TypeName == "double" || op == "/") 
+                                ? Double : Int;
+                        }
+                    }
                     break;
                     
                 // Comparison operators
@@ -282,7 +359,12 @@ namespace FunctionalScript.Transpiler.TypeInference
             {
                 case "-":
                 case "+":
-                    return (operand == Int || operand == Double) ? operand : Double;
+                    if (operand is PrimitiveType p)
+                    {
+                        if (p.TypeName == "int") return Int;
+                        if (p.TypeName == "double") return Double;
+                    }
+                    return Double;
                 case "!":
                     return Bool;
                 case "~":
@@ -297,13 +379,18 @@ namespace FunctionalScript.Transpiler.TypeInference
         /// </summary>
         public FSType InferTernary(FSType condition, FSType trueType, FSType falseType)
         {
+            // Try numeric unification first (int and double -> double)
+            if (trueType is PrimitiveType tp && falseType is PrimitiveType fp)
+            {
+                if ((tp.TypeName == "int" || tp.TypeName == "double") && 
+                    (fp.TypeName == "int" || fp.TypeName == "double"))
+                {
+                    return (tp.TypeName == "double" || fp.TypeName == "double") ? Double : Int;
+                }
+            }
+            
             if (trueType.IsCompatibleWith(falseType))
                 return trueType;
-            
-            // Try numeric unification
-            if ((trueType == Int || trueType == Double) && 
-                (falseType == Int || falseType == Double))
-                return Double;
             
             // Create union type for incompatible branches
             return new UnionType(trueType, falseType);

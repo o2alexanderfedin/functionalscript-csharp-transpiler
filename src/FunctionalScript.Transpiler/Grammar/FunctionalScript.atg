@@ -1,0 +1,314 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using FunctionalScript.Transpiler;
+
+COMPILER FunctionalScript
+
+public CodeGenerator gen = new CodeGenerator();
+
+CHARACTERS
+  letter = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".
+  digit = "0123456789".
+  hexDigit = "0123456789ABCDEFabcdef".
+  octDigit = "01234567".
+  binDigit = "01".
+  cr = '\r'.
+  lf = '\n'.
+  tab = '\t'.
+  stringChar = ANY - '"' - '\\' - cr - lf.
+  stringChar2 = ANY - '\'' - '\\' - cr - lf.
+  char = ANY - cr - lf.
+  noStar = ANY - '*'.
+
+TOKENS
+  ident = (letter | '_' | '$') {letter | digit | '_' | '$'}.
+  
+  number = digit {digit} ['.' {digit}] [('e'|'E') ['+'|'-'] digit {digit}]
+         | '.' digit {digit} [('e'|'E') ['+'|'-'] digit {digit}].
+  
+  hexNumber = "0x" hexDigit {hexDigit} | "0X" hexDigit {hexDigit}.
+  octNumber = "0o" octDigit {octDigit} | "0O" octDigit {octDigit}.
+  binNumber = "0b" binDigit {binDigit} | "0B" binDigit {binDigit}.
+  
+  bigint = digit {digit} 'n'.
+  hexBigint = "0x" hexDigit {hexDigit} 'n' | "0X" hexDigit {hexDigit} 'n'.
+  octBigint = "0o" octDigit {octDigit} 'n' | "0O" octDigit {octDigit} 'n'.
+  binBigint = "0b" binDigit {binDigit} 'n' | "0B" binDigit {binDigit} 'n'.
+  
+  string = '"' {stringChar | '\\' char} '"'
+         | '\'' {stringChar2 | '\\' char} '\''.
+  
+  blockComment = "/**" {noStar | '*' noStar} "*/".
+  
+  import = "import".
+  export = "export".
+  default = "default".
+  from = "from".
+  as = "as".
+  const = "const".
+  null = "null".
+  true = "true".
+  false = "false".
+  undefined = "undefined".
+
+COMMENTS FROM "/*" TO "*/" NESTED
+COMMENTS FROM "//" TO lf
+
+IGNORE cr + lf + tab
+
+PRODUCTIONS
+
+FunctionalScript                           (. gen.StartModule(); .)
+= {ImportStatement} 
+  {Statement} 
+  [ExportStatement]                        (. gen.EndModule(); .)
+.
+
+ImportStatement
+= import ident                             (. string name = t.val; .)
+  from string                               (. gen.AddImport(name, t.val.Trim('"', '\'')); .)
+| import '*' as ident                      (. string name = t.val; .)
+  from string                               (. gen.AddImport(name, t.val.Trim('"', '\'')); .)
+.
+
+ExportStatement
+= export default Expression                (. gen.SetExportDefault(gen.PopExpr()); .)
+.
+
+Statement
+= ConstDeclaration
+| blockComment
+.
+
+ConstDeclaration
+= const ident                              (. string name = t.val; .)
+  '=' Expression                           (. gen.AddConstant(name, gen.PopExpr()); .)
+.
+
+Expression
+= ConditionalExpression
+.
+
+ConditionalExpression                      (. string cond, thenExpr, elseExpr; .)
+= NullishCoalescingExpression
+  [ '?' Expression                         (. thenExpr = gen.PopExpr(); cond = gen.PopExpr(); .)
+    ':' ConditionalExpression              (. elseExpr = gen.PopExpr(); 
+                                               gen.PushExpr($"({cond}) ? ({thenExpr}) : ({elseExpr})"); .)
+  ]
+.
+
+NullishCoalescingExpression                (. string left, right; .)
+= LogicalOrExpression
+  { "??" LogicalOrExpression               (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               gen.PushExpr($"({left} ?? {right})"); .)
+  }
+.
+
+LogicalOrExpression                        (. string left, right; .)
+= LogicalAndExpression
+  { "||" LogicalAndExpression              (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               gen.PushExpr($"(FunctionalScript.Runtime.LogicalOr({left}, {right}))"); .)
+  }
+.
+
+LogicalAndExpression                       (. string left, right; .)
+= BitwiseOrExpression
+  { "&&" BitwiseOrExpression               (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               gen.PushExpr($"(FunctionalScript.Runtime.LogicalAnd({left}, {right}))"); .)
+  }
+.
+
+BitwiseOrExpression                        (. string left, right; .)
+= BitwiseXorExpression
+  { '|' BitwiseXorExpression               (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               gen.PushExpr($"({left} | {right})"); .)
+  }
+.
+
+BitwiseXorExpression                       (. string left, right; .)
+= BitwiseAndExpression
+  { '^' BitwiseAndExpression               (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               gen.PushExpr($"({left} ^ {right})"); .)
+  }
+.
+
+BitwiseAndExpression                       (. string left, right; .)
+= EqualityExpression
+  { '&' EqualityExpression                 (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               gen.PushExpr($"({left} & {right})"); .)
+  }
+.
+
+EqualityExpression                         (. string left, right, op = ""; .)
+= RelationalExpression
+  { ( "==="                                (. op = "StrictEquals"; .)
+    | "!=="                                (. op = "StrictNotEquals"; .)
+    ) RelationalExpression                 (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               gen.PushExpr($"FunctionalScript.Runtime.{op}({left}, {right})"); .)
+  }
+.
+
+RelationalExpression                       (. string left, right, op = ""; .)
+= ShiftExpression
+  { ( '<'                                  (. op = "<"; .)
+    | '>'                                  (. op = ">"; .)
+    | "<="                                 (. op = "<="; .)
+    | ">="                                 (. op = ">="; .)
+    ) ShiftExpression                      (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               gen.PushExpr($"({left} {op} {right})"); .)
+  }
+.
+
+ShiftExpression                            (. string left, right, op = ""; .)
+= AdditiveExpression
+  { ( "<<"                                 (. op = "<<"; .)
+    | ">>"                                 (. op = ">>"; .)
+    | ">>>"                                (. op = ">>>"; .)
+    ) AdditiveExpression                   (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               string expr = op == ">>>" ? 
+                                                 $"(int)((uint){left} >> {right})" : 
+                                                 $"({left} {op} {right})";
+                                               gen.PushExpr(expr); .)
+  }
+.
+
+AdditiveExpression                         (. string left, right, op = ""; .)
+= MultiplicativeExpression
+  { ( '+'                                  (. op = "+"; .)
+    | '-'                                  (. op = "-"; .)
+    ) MultiplicativeExpression             (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               gen.PushExpr($"({left} {op} {right})"); .)
+  }
+.
+
+MultiplicativeExpression                   (. string left, right, op = ""; .)
+= ExponentialExpression
+  { ( '*'                                  (. op = "*"; .)
+    | '/'                                  (. op = "/"; .)
+    | '%'                                  (. op = "%"; .)
+    ) ExponentialExpression                (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               gen.PushExpr($"({left} {op} {right})"); .)
+  }
+.
+
+ExponentialExpression                      (. string left, right; .)
+= UnaryExpression
+  [ "**" ExponentialExpression             (. right = gen.PopExpr(); left = gen.PopExpr();
+                                               gen.PushExpr($"Math.Pow({left}, {right})"); .)
+  ]
+.
+
+UnaryExpression                            (. string expr; .)
+= '-' UnaryExpression                      (. expr = gen.PopExpr(); gen.PushExpr($"(-{expr})"); .)
+| '+' UnaryExpression                      (. expr = gen.PopExpr(); gen.PushExpr($"(+{expr})"); .)
+| '!' UnaryExpression                      (. expr = gen.PopExpr(); gen.PushExpr($"(!{expr})"); .)
+| '~' UnaryExpression                      (. expr = gen.PopExpr(); gen.PushExpr($"(~{expr})"); .)
+| PostfixExpression
+.
+
+PostfixExpression
+= CallExpression
+.
+
+CallExpression                             (. string func, args = ""; List<string> argList = new List<string>(); .)
+= MemberExpression
+  { '(' [ArgumentList<. out argList .>] ')'   (. func = gen.PopExpr();
+                                               args = string.Join(", ", argList);
+                                               gen.PushExpr($"{func}({args})"); .)
+  | '.' ident                              (. string obj = gen.PopExpr();
+                                               gen.PushExpr($"{obj}.{t.val}"); .)
+  | '[' Expression ']'                     (. string index = gen.PopExpr(); string obj = gen.PopExpr();
+                                               gen.PushExpr($"{obj}[{index}]"); .)
+  }
+.
+
+MemberExpression                           (. string obj, member; .)
+= PrimaryExpression
+  { '.' ident                              (. obj = gen.PopExpr();
+                                               gen.PushExpr($"{obj}.{t.val}"); .)
+  | '[' Expression ']'                     (. string index = gen.PopExpr(); obj = gen.PopExpr();
+                                               gen.PushExpr($"{obj}[{index}]"); .)
+  | '[' '+' Expression ']'                 (. string index = gen.PopExpr(); obj = gen.PopExpr();
+                                               gen.PushExpr($"FunctionalScript.Runtime.DynamicIndex({obj}, {index})"); .)
+  }
+.
+
+PrimaryExpression
+= ident                                    (. gen.PushExpr(t.val); .)
+| Literal
+| ArrayLiteral
+| ObjectLiteral
+| '(' Expression ')'
+.
+
+Literal
+= null                                     (. gen.PushExpr("null"); .)
+| true                                     (. gen.PushExpr("true"); .)
+| false                                    (. gen.PushExpr("false"); .)
+| undefined                                (. gen.PushExpr("FunctionalScript.Runtime.Undefined"); .)
+| NumericLiteral
+| string                                   (. gen.PushExpr($"@{t.val}"); .)
+| BigIntLiteral
+.
+
+NumericLiteral
+= number                                   (. gen.PushExpr(t.val); .)
+| hexNumber                                (. gen.PushExpr(t.val); .)
+| octNumber                                (. string val = t.val.Substring(2);
+                                               gen.PushExpr($"Convert.ToInt32(\"{val}\", 8)"); .)
+| binNumber                                (. string val = t.val.Substring(2);
+                                               gen.PushExpr($"Convert.ToInt32(\"{val}\", 2)"); .)
+.
+
+BigIntLiteral
+= bigint                                   (. string val = t.val.TrimEnd('n');
+                                               gen.PushExpr($"new BigInteger({val})"); .)
+| hexBigint                                (. string val = t.val.TrimEnd('n');
+                                               gen.PushExpr($"BigInteger.Parse(\"{val.Substring(2)}\", System.Globalization.NumberStyles.HexNumber)"); .)
+| octBigint                                (. string val = t.val.Substring(2).TrimEnd('n');
+                                               gen.PushExpr($"FunctionalScript.Runtime.ParseOctalBigInt(\"{val}\")"); .)
+| binBigint                                (. string val = t.val.Substring(2).TrimEnd('n');
+                                               gen.PushExpr($"FunctionalScript.Runtime.ParseBinaryBigInt(\"{val}\")"); .)
+.
+
+ArrayLiteral                               (. List<string> elements = new List<string>(); .)
+= '[' [ElementList<. out elements .>] ']'     (. gen.PushExpr($"new dynamic[] {{ {string.Join(", ", elements)} }}"); .)
+.
+
+ElementList<. out List<string> elements .>    (. elements = new List<string>(); .)
+= Expression                               (. elements.Add(gen.PopExpr()); .)
+  { ',' Expression                         (. elements.Add(gen.PopExpr()); .)
+  } [',']
+.
+
+ObjectLiteral                              (. List<string> props = new List<string>(); .)
+= '{' [PropertyList<. out props .>] '}'       (. gen.PushExpr($"new ExpandoObject {{ {string.Join(", ", props)} }}"); .)
+.
+
+PropertyList<. out List<string> props .>      (. props = new List<string>(); string key, value; .)
+= Property<. out key, out value .>            (. props.Add($"{key} = {value}"); .)
+  { ',' Property<. out key, out value .>      (. props.Add($"{key} = {value}"); .)
+  } [',']
+.
+
+Property<. out string key, out string value .> (. key = ""; value = ""; .)
+= PropertyName<. out key .> ':' Expression    (. value = gen.PopExpr(); .)
+| ident                                    (. key = t.val; value = t.val; .)
+| "..." Expression                         (. value = gen.PopExpr(); key = $"...{value}"; .)
+.
+
+PropertyName<. out string key .>              (. key = ""; .)
+= ident                                    (. key = $"\"{t.val}\""; .)
+| string                                   (. key = t.val; .)
+| NumericLiteral                           (. key = $"\"{gen.PopExpr()}\""; .)
+| '[' Expression ']'                       (. key = gen.PopExpr(); .)
+.
+
+ArgumentList<. out List<string> args .>       (. args = new List<string>(); .)
+= Expression                               (. args.Add(gen.PopExpr()); .)
+  { ',' Expression                         (. args.Add(gen.PopExpr()); .)
+  }
+.
+
+END FunctionalScript.

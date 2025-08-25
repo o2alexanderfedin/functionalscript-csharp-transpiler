@@ -1,0 +1,66 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="9.0.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Mark ATG file as source for parser generation -->
+    <None Update="Grammar\FunctionalScript.atg">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <!-- Exclude generated files from compilation temporarily during generation -->
+    <Compile Remove="Parser.cs" Condition="'$(BuildingInsideVisualStudio)' != 'true'" />
+    <Compile Remove="Scanner.cs" Condition="'$(BuildingInsideVisualStudio)' != 'true'" />
+  </ItemGroup>
+
+  <Target Name="GenerateParser" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <CocoCommand>coco</CocoCommand>
+      <AtgFile>$(MSBuildProjectDirectory)/Grammar/FunctionalScript.atg</AtgFile>
+      <ParserFile>$(MSBuildProjectDirectory)/Parser.cs</ParserFile>
+      <ScannerFile>$(MSBuildProjectDirectory)/Scanner.cs</ScannerFile>
+    </PropertyGroup>
+    
+    <!-- Check if COCO/R is available -->
+    <Exec Command="which $(CocoCommand)" 
+          ContinueOnError="true" 
+          StandardOutputImportance="low"
+          ConsoleToMSBuild="true">
+      <Output TaskParameter="ExitCode" PropertyName="CocoExitCode" />
+    </Exec>
+    
+    <!-- Generate parser if COCO/R is available and ATG file exists -->
+    <Exec Condition="'$(CocoExitCode)' == '0' And Exists('$(AtgFile)')"
+          Command="cd &quot;$(MSBuildProjectDirectory)/Grammar&quot; &amp;&amp; $(CocoCommand) FunctionalScript.atg"
+          ConsoleToMSBuild="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="CocoOutput" />
+    </Exec>
+    
+    <!-- Move generated files to project root -->
+    <Move Condition="Exists('$(MSBuildProjectDirectory)/Grammar/Parser.cs')"
+          SourceFiles="$(MSBuildProjectDirectory)/Grammar/Parser.cs"
+          DestinationFiles="$(ParserFile)" />
+    <Move Condition="Exists('$(MSBuildProjectDirectory)/Grammar/Scanner.cs')"
+          SourceFiles="$(MSBuildProjectDirectory)/Grammar/Scanner.cs"
+          DestinationFiles="$(ScannerFile)" />
+    
+    <!-- Include generated files in compilation -->
+    <ItemGroup>
+      <Compile Include="Parser.cs" Condition="Exists('Parser.cs')" />
+      <Compile Include="Scanner.cs" Condition="Exists('Scanner.cs')" />
+    </ItemGroup>
+    
+    <Message Importance="high" Text="Parser generation completed: $(CocoOutput)" 
+             Condition="'$(CocoExitCode)' == '0'" />
+    <Warning Text="COCO/R not found. Using existing parser files. Install with: dotnet tool install -g CocoR" 
+             Condition="'$(CocoExitCode)' != '0'" />
+  </Target>
+
+</Project>

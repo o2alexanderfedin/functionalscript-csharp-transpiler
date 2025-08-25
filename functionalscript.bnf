@@ -1,0 +1,401 @@
+# FunctionalScript BNF Grammar Specification
+# Based on FunctionalScript language specification documents
+# https://github.com/functionalscript/functionalscript
+
+# ============================================================================
+# Module Structure
+# ============================================================================
+
+<module> ::= <import-list> <statement-list> <export-statement>?
+           | <statement-list> <export-statement>?
+           | <export-statement>
+
+<import-list> ::= <import-statement>
+                | <import-list> <import-statement>
+
+<statement-list> ::= <statement>
+                   | <statement-list> <statement>
+
+<statement> ::= <const-declaration>
+              | <expression-statement>
+              | <block-comment>
+
+# ============================================================================
+# Import Statements
+# ============================================================================
+
+<import-statement> ::= <default-import>
+                     | <namespace-import>
+
+<default-import> ::= "import" <identifier> "from" <string-literal>
+
+<namespace-import> ::= "import" "*" "as" <identifier> "from" <string-literal>
+
+# ============================================================================
+# Export Statement
+# ============================================================================
+
+<export-statement> ::= "export" "default" <expression>
+
+# ============================================================================
+# Declarations
+# ============================================================================
+
+<const-declaration> ::= "const" <identifier> "=" <expression>
+
+# ============================================================================
+# Comments
+# ============================================================================
+
+<block-comment> ::= "/**" <comment-content> "*/"
+
+<jsdoc-comment> ::= "/**" <jsdoc-tags> "*/"
+
+<jsdoc-tags> ::= <jsdoc-tag>
+               | <jsdoc-tags> <jsdoc-tag>
+
+<jsdoc-tag> ::= "@type" "{" <type-expression> "}"
+              | "@param" "{" <type-expression> "}" <identifier>
+              | "@returns" "{" <type-expression> "}"
+
+<comment-content> ::= <any-character-except-star-slash>*
+
+# ============================================================================
+# Expressions
+# ============================================================================
+
+<expression> ::= <assignment-expression>
+
+<assignment-expression> ::= <conditional-expression>
+
+<conditional-expression> ::= <nullish-coalescing-expression>
+                           | <nullish-coalescing-expression> "?" <expression> ":" <conditional-expression>
+
+<nullish-coalescing-expression> ::= <logical-or-expression>
+                                   | <logical-or-expression> "??" <nullish-coalescing-expression>
+
+<logical-or-expression> ::= <logical-and-expression>
+                          | <logical-and-expression> "||" <logical-or-expression>
+
+<logical-and-expression> ::= <bitwise-or-expression>
+                           | <bitwise-or-expression> "&&" <logical-and-expression>
+
+<bitwise-or-expression> ::= <bitwise-xor-expression>
+                          | <bitwise-xor-expression> "|" <bitwise-or-expression>
+
+<bitwise-xor-expression> ::= <bitwise-and-expression>
+                           | <bitwise-and-expression> "^" <bitwise-xor-expression>
+
+<bitwise-and-expression> ::= <equality-expression>
+                           | <equality-expression> "&" <bitwise-and-expression>
+
+<equality-expression> ::= <relational-expression>
+                        | <relational-expression> "===" <equality-expression>
+                        | <relational-expression> "!==" <equality-expression>
+
+<relational-expression> ::= <shift-expression>
+                          | <shift-expression> "<" <relational-expression>
+                          | <shift-expression> ">" <relational-expression>
+                          | <shift-expression> "<=" <relational-expression>
+                          | <shift-expression> ">=" <relational-expression>
+
+<shift-expression> ::= <additive-expression>
+                     | <additive-expression> "<<" <shift-expression>
+                     | <additive-expression> ">>" <shift-expression>
+                     | <additive-expression> ">>>" <shift-expression>
+
+<additive-expression> ::= <multiplicative-expression>
+                        | <multiplicative-expression> "+" <additive-expression>
+                        | <multiplicative-expression> "-" <additive-expression>
+
+<multiplicative-expression> ::= <exponential-expression>
+                              | <exponential-expression> "*" <multiplicative-expression>
+                              | <exponential-expression> "/" <multiplicative-expression>
+                              | <exponential-expression> "%" <multiplicative-expression>
+
+<exponential-expression> ::= <unary-expression>
+                           | <unary-expression> "**" <exponential-expression>
+
+<unary-expression> ::= <postfix-expression>
+                     | "-" <unary-expression>
+                     | "+" <unary-expression>
+                     | "!" <unary-expression>
+                     | "~" <unary-expression>
+
+<postfix-expression> ::= <call-expression>
+
+<call-expression> ::= <member-expression>
+                    | <member-expression> <arguments>
+                    | <call-expression> <arguments>
+                    | <call-expression> "." <identifier>
+                    | <call-expression> "[" <expression> "]"
+
+<member-expression> ::= <primary-expression>
+                      | <member-expression> "." <identifier>
+                      | <member-expression> "[" <expression> "]"
+                      | <member-expression> "[" "+" <expression> "]"
+
+<primary-expression> ::= <identifier>
+                       | <literal>
+                       | <array-literal>
+                       | <object-literal>
+                       | <grouped-expression>
+
+<grouped-expression> ::= "(" <expression> ")"
+
+<arguments> ::= "(" ")"
+              | "(" <argument-list> ")"
+
+<argument-list> ::= <expression>
+                  | <argument-list> "," <expression>
+
+# ============================================================================
+# Literals
+# ============================================================================
+
+<literal> ::= <null-literal>
+            | <boolean-literal>
+            | <numeric-literal>
+            | <string-literal>
+            | <undefined-literal>
+            | <bigint-literal>
+
+<null-literal> ::= "null"
+
+<boolean-literal> ::= "true"
+                    | "false"
+
+<undefined-literal> ::= "undefined"
+
+<numeric-literal> ::= <decimal-literal>
+                    | <hex-integer-literal>
+                    | <octal-integer-literal>
+                    | <binary-integer-literal>
+
+<decimal-literal> ::= <decimal-integer-literal> "." <decimal-digits>?
+                    | "." <decimal-digits>
+                    | <decimal-integer-literal>
+                    | <decimal-integer-literal> <exponent-part>
+                    | <decimal-integer-literal> "." <decimal-digits>? <exponent-part>
+                    | "." <decimal-digits> <exponent-part>
+
+<decimal-integer-literal> ::= "0"
+                            | <non-zero-digit> <decimal-digits>?
+                            | "-" <non-zero-digit> <decimal-digits>?
+                            | "-" "0"
+
+<decimal-digits> ::= <decimal-digit>
+                   | <decimal-digits> <decimal-digit>
+
+<decimal-digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+
+<non-zero-digit> ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+
+<exponent-part> ::= <exponent-indicator> <signed-integer>
+
+<exponent-indicator> ::= "e" | "E"
+
+<signed-integer> ::= <decimal-digits>
+                   | "+" <decimal-digits>
+                   | "-" <decimal-digits>
+
+<hex-integer-literal> ::= "0x" <hex-digits>
+                        | "0X" <hex-digits>
+
+<hex-digits> ::= <hex-digit>
+               | <hex-digits> <hex-digit>
+
+<hex-digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+              | "a" | "b" | "c" | "d" | "e" | "f"
+              | "A" | "B" | "C" | "D" | "E" | "F"
+
+<octal-integer-literal> ::= "0o" <octal-digits>
+                          | "0O" <octal-digits>
+
+<octal-digits> ::= <octal-digit>
+                 | <octal-digits> <octal-digit>
+
+<octal-digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7"
+
+<binary-integer-literal> ::= "0b" <binary-digits>
+                           | "0B" <binary-digits>
+
+<binary-digits> ::= <binary-digit>
+                  | <binary-digits> <binary-digit>
+
+<binary-digit> ::= "0" | "1"
+
+<bigint-literal> ::= <decimal-integer-literal> "n"
+                   | <hex-integer-literal> "n"
+                   | <octal-integer-literal> "n"
+                   | <binary-integer-literal> "n"
+
+<string-literal> ::= '"' <double-string-characters>? '"'
+                   | "'" <single-string-characters>? "'"
+
+<double-string-characters> ::= <double-string-character>
+                             | <double-string-characters> <double-string-character>
+
+<double-string-character> ::= <source-character-except-double-quote-backslash-lineterm>
+                            | <escape-sequence>
+
+<single-string-characters> ::= <single-string-character>
+                             | <single-string-characters> <single-string-character>
+
+<single-string-character> ::= <source-character-except-single-quote-backslash-lineterm>
+                            | <escape-sequence>
+
+<escape-sequence> ::= <character-escape-sequence>
+                    | <hex-escape-sequence>
+                    | <unicode-escape-sequence>
+
+<character-escape-sequence> ::= <single-escape-character>
+                              | <non-escape-character>
+
+<single-escape-character> ::= "'" | '"' | "\\" | "b" | "f" | "n" | "r" | "t" | "v"
+
+<hex-escape-sequence> ::= "\\x" <hex-digit> <hex-digit>
+
+<unicode-escape-sequence> ::= "\\u" <hex-digit> <hex-digit> <hex-digit> <hex-digit>
+
+# ============================================================================
+# Array and Object Literals
+# ============================================================================
+
+<array-literal> ::= "[" "]"
+                  | "[" <element-list> "]"
+                  | "[" <element-list> "," "]"
+
+<element-list> ::= <expression>
+                 | <element-list> "," <expression>
+
+<object-literal> ::= "{" "}"
+                   | "{" <property-list> "}"
+                   | "{" <property-list> "," "}"
+
+<property-list> ::= <property>
+                  | <property-list> "," <property>
+
+<property> ::= <property-name> ":" <expression>
+             | <identifier>
+             | "..." <expression>
+
+<property-name> ::= <identifier>
+                  | <string-literal>
+                  | <numeric-literal>
+                  | "[" <expression> "]"
+
+# ============================================================================
+# Identifiers
+# ============================================================================
+
+<identifier> ::= <identifier-start> <identifier-part>*
+
+<identifier-start> ::= <letter>
+                     | "$"
+                     | "_"
+
+<identifier-part> ::= <identifier-start>
+                    | <decimal-digit>
+
+<letter> ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" 
+           | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" 
+           | "w" | "x" | "y" | "z"
+           | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K"
+           | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V"
+           | "W" | "X" | "Y" | "Z"
+
+# ============================================================================
+# Built-in Objects and Functions
+# ============================================================================
+
+<built-in-object> ::= "Object" | "Array" | "BigInt" | "JSON"
+
+<object-method> ::= "Object" "." <object-method-name>
+
+<object-method-name> ::= "assign" | "entries" | "keys" | "values" | "freeze" 
+                       | "seal" | "create" | "defineProperty" | "defineProperties"
+                       | "getOwnPropertyDescriptor" | "getOwnPropertyDescriptors"
+                       | "getOwnPropertyNames" | "getOwnPropertySymbols"
+                       | "getPrototypeOf" | "setPrototypeOf" | "is" | "isExtensible"
+                       | "isFrozen" | "isSealed" | "preventExtensions"
+
+<array-method> ::= "Array" "." <array-method-name>
+
+<array-method-name> ::= "from" | "of" | "isArray"
+
+# ============================================================================
+# Type Annotations (JSDoc)
+# ============================================================================
+
+<type-expression> ::= <primary-type>
+                    | <union-type>
+                    | <generic-type>
+                    | <array-type>
+                    | <nullable-type>
+
+<primary-type> ::= "number" | "string" | "boolean" | "undefined" | "null"
+                 | "bigint" | "object" | "any" | "unknown" | "never" | "void"
+                 | <qualified-type>
+
+<qualified-type> ::= <identifier>
+                   | <identifier> "." <identifier>
+
+<union-type> ::= <type-expression> "|" <type-expression>
+
+<generic-type> ::= <identifier> "<" <type-list> ">"
+
+<type-list> ::= <type-expression>
+              | <type-list> "," <type-expression>
+
+<array-type> ::= <type-expression> "[" "]"
+               | "Array" "<" <type-expression> ">"
+
+<nullable-type> ::= "?" <type-expression>
+
+# ============================================================================
+# Whitespace and Line Terminators
+# ============================================================================
+
+<whitespace> ::= <space> | <tab> | <vertical-tab> | <form-feed> 
+               | <no-break-space> | <byte-order-mark> | <other-space>
+
+<line-terminator> ::= <line-feed> | <carriage-return> 
+                    | <line-separator> | <paragraph-separator>
+
+<space> ::= " "
+<tab> ::= "\t"
+<line-feed> ::= "\n"
+<carriage-return> ::= "\r"
+
+# ============================================================================
+# Special Restrictions and Notes
+# ============================================================================
+
+# 1. Property Access Restrictions:
+#    - Cannot access __proto__, constructor, prototype
+#    - Dynamic array indexing requires explicit + operator: a[+index]
+#
+# 2. Operator Restrictions:
+#    - No loose equality (==, !=), only strict (===, !==)
+#    - No comma operator
+#    - No assignment operators except initial const declaration
+#
+# 3. Statement Restrictions:
+#    - No loops (for, while, do-while)
+#    - No if/else statements (use conditional operator instead)
+#    - No switch statements
+#    - No throw statements
+#    - No try/catch/finally
+#    - No class declarations
+#    - No function declarations (only arrow functions in expressions)
+#
+# 4. Module System:
+#    - Only ES6 module syntax
+#    - Only default and namespace imports
+#    - Only default exports
+#    - Import paths must be string literals
+#
+# 5. Side Effects:
+#    - Many built-in functions restricted based on side effects
+#    - Compiler enforces pure functional programming constraints

@@ -129,6 +129,18 @@ namespace FunctionalScript
                    type == typeof(decimal) || type == typeof(BigInteger);
         }
         
+        // Helper to create ExpandoObject from dictionary
+        public static dynamic CreateObject(Dictionary<string, object> properties)
+        {
+            var expando = new ExpandoObject();
+            var dict = (IDictionary<string, object>)expando;
+            foreach (var kvp in properties)
+            {
+                dict[kvp.Key] = kvp.Value;
+            }
+            return expando;
+        }
+        
         public static class Object
         {
             public static dynamic Assign(dynamic target, params dynamic[] sources)

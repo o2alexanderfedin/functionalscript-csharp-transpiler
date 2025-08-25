@@ -217,7 +217,40 @@ CallExpression                             (. string func, args = ""; List<strin
                                                args = string.Join(", ", argList);
                                                gen.PushExpr($"{func}({args})"); .)
   | '.' ident                              (. string obj = gen.PopExpr();
-                                               gen.PushExpr($"{obj}.{t.val}"); .)
+                                               string methodName = t.val;
+                                               // Map JavaScript built-in methods to C# equivalents
+                                               if (obj == "Object") {
+                                                   if (methodName == "keys") methodName = "Keys";
+                                                   else if (methodName == "values") methodName = "Values";
+                                                   else if (methodName == "entries") methodName = "Entries";
+                                                   else if (methodName == "assign") methodName = "Assign";
+                                                   else if (methodName == "freeze") methodName = "Freeze";
+                                                   else if (methodName == "seal") methodName = "Seal";
+                                                   else if (methodName == "is") methodName = "Is";
+                                                   obj = "FunctionalScript.Runtime.Object";
+                                               } else if (obj == "Array") {
+                                                   if (methodName == "from") methodName = "From";
+                                                   else if (methodName == "of") methodName = "Of";
+                                                   else if (methodName == "isArray") methodName = "IsArray";
+                                                   obj = "FunctionalScript.Runtime.Array";
+                                               } else if (obj == "Math") {
+                                                   if (methodName == "abs") methodName = "Abs";
+                                                   else if (methodName == "pow") methodName = "Pow";
+                                                   else if (methodName == "max") methodName = "Max";
+                                                   else if (methodName == "min") methodName = "Min";
+                                                   else if (methodName == "floor") methodName = "Floor";
+                                                   else if (methodName == "ceil") methodName = "Ceil";
+                                                   else if (methodName == "round") methodName = "Round";
+                                                   else if (methodName == "sqrt") methodName = "Sqrt";
+                                                   obj = "System.Math";
+                                               } else if (obj == "JSON") {
+                                                   if (methodName == "stringify") methodName = "Stringify";
+                                                   else if (methodName == "parse") methodName = "Parse";
+                                                   obj = "FunctionalScript.Runtime.JSON";
+                                               } else if (obj == "BigInt") {
+                                                   obj = "FunctionalScript.Runtime.BigInt";
+                                               }
+                                               gen.PushExpr($"{obj}.{methodName}"); .)
   | '[' Expression ']'                     (. string index = gen.PopExpr(); string obj = gen.PopExpr();
                                                gen.PushExpr($"{obj}[{index}]"); .)
   }
@@ -283,12 +316,18 @@ ElementList<. out List<string> elements .>    (. elements = new List<string>(); 
 .
 
 ObjectLiteral                              (. List<string> props = new List<string>(); .)
-= '{' [PropertyList<. out props .>] '}'       (. gen.PushExpr($"new ExpandoObject {{ {string.Join(", ", props)} }}"); .)
+= '{' [PropertyList<. out props .>] '}'       (. 
+                                               if (props.Count == 0) {
+                                                   gen.PushExpr("new ExpandoObject()");
+                                               } else {
+                                                   gen.PushExpr($"FunctionalScript.Runtime.CreateObject(new Dictionary<string, object> {{ {string.Join(", ", props)} }})");
+                                               }
+                                            .)
 .
 
 PropertyList<. out List<string> props .>      (. props = new List<string>(); string key, value; .)
-= Property<. out key, out value .>            (. props.Add($"{key} = {value}"); .)
-  { ',' Property<. out key, out value .>      (. props.Add($"{key} = {value}"); .)
+= Property<. out key, out value .>            (. props.Add($"{{ {key}, {value} }}"); .)
+  { ',' Property<. out key, out value .>      (. props.Add($"{{ {key}, {value} }}"); .)
   } [',']
 .
 

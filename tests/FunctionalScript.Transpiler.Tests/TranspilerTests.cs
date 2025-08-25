@@ -33,7 +33,7 @@ namespace FunctionalScript.Transpiler.Tests
         [InlineData("false", "false")]
         [InlineData("undefined", "FunctionalScript.Runtime.Undefined")]
         [InlineData("42", "42")]
-        [InlineData("-17", "-17")]
+        [InlineData("-17", "(-17)")]  // Unary minus wraps in parens
         [InlineData("3.14", "3.14")]
         [InlineData("\"hello\"", "@\"hello\"")]
         [InlineData("'world'", "@'world'")]
@@ -165,7 +165,7 @@ namespace FunctionalScript.Transpiler.Tests
             var result = transpiler.Transpile(source);
             
             Assert.True(result.Success);
-            Assert.Contains("new ExpandoObject", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.CreateObject", result.GeneratedCode);
         }
 
         [Fact]
@@ -181,7 +181,7 @@ namespace FunctionalScript.Transpiler.Tests
             
             Assert.True(result.Success);
             Assert.Contains("obj.name", result.GeneratedCode);
-            Assert.Contains("obj[\"value\"]", result.GeneratedCode);
+            Assert.Contains("obj[@\"value\"]", result.GeneratedCode);
         }
 
         [Fact]
@@ -347,7 +347,7 @@ namespace FunctionalScript.Transpiler.Tests
             
             Assert.True(result.Success);
             Assert.Contains("obj.nested.deep.value", result.GeneratedCode);
-            Assert.Contains("obj[\"nested\"]", result.GeneratedCode);
+            Assert.Contains("obj[@\"nested\"]", result.GeneratedCode);
             Assert.Contains("obj.array[0]", result.GeneratedCode);
         }
 
@@ -379,9 +379,9 @@ namespace FunctionalScript.Transpiler.Tests
             var result = transpiler.Transpile(source);
             
             Assert.True(result.Success);
-            Assert.Contains("Object.Keys", result.GeneratedCode);
-            Assert.Contains("Object.Values", result.GeneratedCode);
-            Assert.Contains("Object.Entries", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.Object.Keys", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.Object.Values", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.Object.Entries", result.GeneratedCode);
         }
 
         [Fact]
@@ -397,7 +397,7 @@ namespace FunctionalScript.Transpiler.Tests
             var result = transpiler.Transpile(source);
             
             Assert.True(result.Success);
-            Assert.Contains("Object.Assign", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.Object.Assign", result.GeneratedCode);
         }
 
         [Fact]
@@ -411,7 +411,7 @@ namespace FunctionalScript.Transpiler.Tests
             var result = transpiler.Transpile(source);
             
             Assert.True(result.Success);
-            Assert.Contains("Object.Freeze", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.Object.Freeze", result.GeneratedCode);
         }
 
         [Fact]
@@ -426,7 +426,7 @@ namespace FunctionalScript.Transpiler.Tests
             var result = transpiler.Transpile(source);
             
             Assert.True(result.Success);
-            Assert.Contains("Object.Is", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.Object.Is", result.GeneratedCode);
         }
 
         [Fact]
@@ -442,9 +442,9 @@ namespace FunctionalScript.Transpiler.Tests
             var result = transpiler.Transpile(source);
             
             Assert.True(result.Success);
-            Assert.Contains("Array.From", result.GeneratedCode);
-            Assert.Contains("Array.Of", result.GeneratedCode);
-            Assert.Contains("Array.IsArray", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.Array.From", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.Array.Of", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.Array.IsArray", result.GeneratedCode);
         }
 
         [Fact]
@@ -459,8 +459,8 @@ namespace FunctionalScript.Transpiler.Tests
             var result = transpiler.Transpile(source);
             
             Assert.True(result.Success);
-            Assert.Contains("JSON.Stringify", result.GeneratedCode);
-            Assert.Contains("JSON.Parse", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.JSON.Stringify", result.GeneratedCode);
+            Assert.Contains("FunctionalScript.Runtime.JSON.Parse", result.GeneratedCode);
         }
 
         [Fact]
@@ -476,10 +476,10 @@ namespace FunctionalScript.Transpiler.Tests
             var result = transpiler.Transpile(source);
             
             Assert.True(result.Success);
-            Assert.Contains("Math.Abs", result.GeneratedCode);
-            Assert.Contains("Math.Pow", result.GeneratedCode);
-            Assert.Contains("Math.Max", result.GeneratedCode);
-            Assert.Contains("Math.Min", result.GeneratedCode);
+            Assert.Contains("System.Math.Abs", result.GeneratedCode);
+            Assert.Contains("System.Math.Pow", result.GeneratedCode);
+            Assert.Contains("System.Math.Max", result.GeneratedCode);
+            Assert.Contains("System.Math.Min", result.GeneratedCode);
         }
 
         [Fact]

@@ -133,7 +133,6 @@ export default result
         [Fact]
         public void TestExponentialOperator()
         {
-            int x;
             var input = @"
 const result = 2 ** 3
 export default result

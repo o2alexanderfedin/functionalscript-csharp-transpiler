@@ -59,3 +59,6 @@ ehthumbs.db
 # Output files from examples
 examples/*.cs
 !examples/test*.f.js
+
+# Test output directory
+test-output/

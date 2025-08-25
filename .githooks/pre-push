@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Git Flow Enforcement Pre-Push Hook
+# This hook validates git flow compliance before pushing
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+PROTECTED_BRANCHES="^(main|master|develop)$"
+REMOTE="$1"
+
+# Color codes
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Check if pushing directly to protected branch
+if [[ "$BRANCH" =~ $PROTECTED_BRANCHES ]]; then
+    echo -e "${RED}❌ ERROR: Direct push to '$BRANCH' branch is not allowed!${NC}"
+    echo ""
+    echo -e "${YELLOW}📝 Proper Git Flow Workflow:${NC}"
+    echo ""
+    
+    if [[ "$BRANCH" == "develop" ]]; then
+        echo "To merge features into develop:"
+        echo -e "${GREEN}  git flow feature finish <feature-name>${NC}"
+        echo ""
+        echo "Or create a pull request:"
+        echo -e "${GREEN}  git flow feature publish <feature-name>${NC}"
+        echo -e "${GREEN}  gh pr create --base develop${NC}"
+    fi
+    
+    if [[ "$BRANCH" =~ ^(main|master)$ ]]; then
+        echo "To deploy to production:"
+        echo -e "${GREEN}  git flow release start <version>${NC}"
+        echo "  # Bump version, update changelog"
+        echo -e "${GREEN}  git flow release finish <version>${NC}"
+        echo ""
+        echo "For emergency fixes:"
+        echo -e "${GREEN}  git flow hotfix start <version>${NC}"
+        echo "  # Apply fix"
+        echo -e "${GREEN}  git flow hotfix finish <version>${NC}"
+    fi
+    
+    echo ""
+    echo -e "${RED}Push blocked to maintain git flow integrity.${NC}"
+    exit 1
+fi
+
+# Validate feature branch
+if [[ "$BRANCH" =~ ^feature/ ]]; then
+    echo -e "${GREEN}✓ Pushing feature branch: $BRANCH${NC}"
+    echo -e "${BLUE}ℹ️  Remember to finish your feature when ready:${NC}"
+    echo -e "   ${GREEN}git flow feature finish ${BRANCH#feature/}${NC}"
+fi
+
+# Validate release branch
+if [[ "$BRANCH" =~ ^release/ ]]; then
+    echo -e "${GREEN}✓ Pushing release branch: $BRANCH${NC}"
+    echo -e "${YELLOW}⚠️  Don't forget to:${NC}"
+    echo "   1. Bump version numbers"
+    echo "   2. Update CHANGELOG.md"
+    echo "   3. Run: ${GREEN}git flow release finish ${BRANCH#release/}${NC}"
+fi
+
+# Validate hotfix branch
+if [[ "$BRANCH" =~ ^hotfix/ ]]; then
+    echo -e "${GREEN}✓ Pushing hotfix branch: $BRANCH${NC}"
+    echo -e "${YELLOW}⚠️  Remember to finish the hotfix:${NC}"
+    echo -e "   ${GREEN}git flow hotfix finish ${BRANCH#hotfix/}${NC}"
+fi
+
+# Check for git flow initialization
+if ! git config --get gitflow.branch.master &>/dev/null; then
+    echo -e "${YELLOW}⚠️  Git Flow not initialized in this repository${NC}"
+    echo -e "   Run: ${GREEN}git flow init -d${NC} to set up git flow"
+fi
+
+exit 0

@@ -62,7 +62,29 @@ namespace FunctionalScript.CLI
                     Console.WriteLine($"Transpiling {inputFile.FullName}...");
                 }
                 
-                outputFile ??= new FileInfo(Path.ChangeExtension(inputFile.FullName, ".cs"));
+                // Determine output file location
+                if (outputFile == null)
+                {
+                    string outputPath;
+                    
+                    // Check if this is a test file (starts with "test" or contains ".test.")
+                    string fileName = inputFile.Name;
+                    if (fileName.StartsWith("test", StringComparison.OrdinalIgnoreCase) || 
+                        fileName.Contains(".test.", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Output test files to test-output directory
+                        string testOutputDir = Path.Combine(Path.GetDirectoryName(inputFile.FullName) ?? ".", "test-output", "transpiled");
+                        Directory.CreateDirectory(testOutputDir);
+                        outputPath = Path.Combine(testOutputDir, Path.GetFileNameWithoutExtension(inputFile.Name) + ".cs");
+                    }
+                    else
+                    {
+                        // Regular output - same directory as input
+                        outputPath = Path.ChangeExtension(inputFile.FullName, ".cs");
+                    }
+                    
+                    outputFile = new FileInfo(outputPath);
+                }
                 
                 var options = new TranspilerOptions
                 {

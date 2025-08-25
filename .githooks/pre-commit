@@ -16,7 +16,10 @@ NC='\033[0m' # No Color
 if [[ "$BRANCH" =~ $PROTECTED_BRANCHES ]]; then
     echo -e "${RED}❌ ERROR: Direct commits to '$BRANCH' branch are not allowed!${NC}"
     echo ""
-    echo -e "${YELLOW}📝 Git Flow Usage Instructions:${NC}"
+    echo -e "${YELLOW}💡 Using Claude Code? Use the git-master agent for git flow operations:${NC}"
+    echo -e "${GREEN}  @git-master commit and push these changes${NC}"
+    echo ""
+    echo -e "${YELLOW}📝 Manual Git Flow Usage Instructions:${NC}"
     echo ""
     echo "For new features:"
     echo -e "${GREEN}  git flow feature start <feature-name>${NC}"
@@ -37,6 +40,8 @@ if [[ "$BRANCH" =~ $PROTECTED_BRANCHES ]]; then
     echo "  git stash"
     echo "  git flow feature start <your-feature>"
     echo "  git stash pop"
+    echo ""
+    echo -e "${YELLOW}🤖 Claude Code users: Use @git-master agent for automated git flow${NC}"
     echo ""
     exit 1
 fi

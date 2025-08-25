@@ -210,7 +210,7 @@ export default arr
             var result = Transpile(input);
             Assert.Contains("new dynamic[]", result);
             Assert.Contains("{ \"id\", 1 }", result);
-            Assert.Contains("{ \"name\", \"first\" }", result);
+            Assert.Contains("{ \"name\", @\"first\" }", result);
         }
 
         [Fact]
@@ -224,7 +224,7 @@ const obj = {
 export default obj
 ";
             var result = Transpile(input);
-            Assert.Contains("{ key, \"value\" }", result);
+            Assert.Contains("{ key, @\"value\" }", result);
         }
 
         [Fact]
@@ -237,7 +237,7 @@ export default obj
 ";
             var result = Transpile(input);
             // Shorthand properties should expand to key-value pairs
-            Assert.Contains("{ name, name }", result);
+            Assert.Contains("{ \"name\", name }", result);
         }
 
         [Fact]

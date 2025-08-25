@@ -343,9 +343,11 @@ ArrayLiteral                               (. List<string> elements = new List<s
 .
 
 ElementList<. out List<string> elements .>    (. elements = new List<string>(); .)
-= Expression                               (. elements.Add(gen.PopExpr()); .)
-  { ',' Expression                         (. elements.Add(gen.PopExpr()); .)
-  } [',']
+= [ Expression                             (. elements.Add(gen.PopExpr()); .)
+    { ',' Expression                       (. elements.Add(gen.PopExpr()); .)
+    }
+    [ ',' ]
+  ]
 .
 
 ObjectLiteral                              (. List<string> props = new List<string>(); .)
@@ -359,22 +361,24 @@ ObjectLiteral                              (. List<string> props = new List<stri
 .
 
 PropertyList<. out List<string> props .>      (. props = new List<string>(); string key, value; .)
-= Property<. out key, out value .>            (. props.Add($"{{ {key}, {value} }}"); .)
-  { ',' Property<. out key, out value .>      (. props.Add($"{{ {key}, {value} }}"); .)
-  } [',']
+= [ Property<. out key, out value .>          (. props.Add($"{{ {key}, {value} }}"); .)
+    { ',' Property<. out key, out value .>    (. props.Add($"{{ {key}, {value} }}"); .)
+    }
+    [ ',' ]
+  ]
 .
 
 Property<. out string key, out string value .> (. key = ""; value = ""; .)
-= PropertyName<. out key .> ':' Expression    (. value = gen.PopExpr(); .)
-| ident                                    (. key = t.val; value = t.val; .)
-| "..." Expression                         (. value = gen.PopExpr(); key = $"...{value}"; .)
-.
-
-PropertyName<. out string key .>              (. key = ""; .)
-= ident                                    (. key = $"\"{t.val}\""; .)
-| string                                   (. key = t.val; .)
-| NumericLiteral                           (. key = $"\"{gen.PopExpr()}\""; .)
+= ident                                    (. string name = t.val; .)
+  ( ':' Expression                         (. key = $"\"{name}\""; value = gen.PopExpr(); .)
+  |                                        (. key = $"\"{name}\""; value = name; .)
+  )
+| string ':' Expression                    (. key = t.val; value = gen.PopExpr(); .)
+| NumericLiteral                           (. string numKey = gen.PopExpr(); .)
+  ':' Expression                           (. key = $"\"{numKey}\""; value = gen.PopExpr(); .)
 | '[' Expression ']'                       (. key = gen.PopExpr(); .)
+  ':' Expression                           (. value = gen.PopExpr(); .)
+| "..." Expression                         (. value = gen.PopExpr(); key = $"...{value}"; .)
 .
 
 ArgumentList<. out List<string> args .>       (. args = new List<string>(); .)

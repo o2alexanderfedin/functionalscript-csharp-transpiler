@@ -62,6 +62,3 @@ examples/*.cs
 
 # Test output directory
 test-output/
-*.f.cs
-*.f.js
-test*.f.*

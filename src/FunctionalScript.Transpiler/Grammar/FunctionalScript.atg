@@ -44,8 +44,6 @@ TOKENS
   import = "import".
   export = "export".
   default = "default".
-  from = "from".
-  as = "as".
   const = "const".
   null = "null".
   true = "true".
@@ -67,9 +65,9 @@ FunctionalScript                           (. gen.StartModule(); .)
 
 ImportStatement
 = import ident                             (. string name = t.val; .)
-  from string                               (. gen.AddImport(name, t.val.Trim('"', '\'')); .)
-| import '*' as ident                      (. string name = t.val; .)
-  from string                               (. gen.AddImport(name, t.val.Trim('"', '\'')); .)
+  "from" string                             (. gen.AddImport(name, t.val.Trim('"', '\'')); .)
+| import '*' "as" ident                    (. string name = t.val; .)
+  "from" string                             (. gen.AddImport(name, t.val.Trim('"', '\'')); .)
 .
 
 ExportStatement
@@ -219,7 +217,7 @@ CallExpression                             (. string func, args = ""; List<strin
   | '.' ident                              (. string obj = gen.PopExpr();
                                                string methodName = t.val;
                                                // Map JavaScript built-in methods to C# equivalents
-                                               if (obj == "Object") {
+                                               if (obj == "FunctionalScript.Runtime.Object") {
                                                    if (methodName == "keys") methodName = "Keys";
                                                    else if (methodName == "values") methodName = "Values";
                                                    else if (methodName == "entries") methodName = "Entries";
@@ -227,13 +225,11 @@ CallExpression                             (. string func, args = ""; List<strin
                                                    else if (methodName == "freeze") methodName = "Freeze";
                                                    else if (methodName == "seal") methodName = "Seal";
                                                    else if (methodName == "is") methodName = "Is";
-                                                   obj = "FunctionalScript.Runtime.Object";
-                                               } else if (obj == "Array") {
+                                               } else if (obj == "FunctionalScript.Runtime.Array") {
                                                    if (methodName == "from") methodName = "From";
                                                    else if (methodName == "of") methodName = "Of";
                                                    else if (methodName == "isArray") methodName = "IsArray";
-                                                   obj = "FunctionalScript.Runtime.Array";
-                                               } else if (obj == "Math") {
+                                               } else if (obj == "System.Math") {
                                                    if (methodName == "abs") methodName = "Abs";
                                                    else if (methodName == "pow") methodName = "Pow";
                                                    else if (methodName == "max") methodName = "Max";
@@ -242,13 +238,11 @@ CallExpression                             (. string func, args = ""; List<strin
                                                    else if (methodName == "ceil") methodName = "Ceil";
                                                    else if (methodName == "round") methodName = "Round";
                                                    else if (methodName == "sqrt") methodName = "Sqrt";
-                                                   obj = "System.Math";
-                                               } else if (obj == "JSON") {
+                                               } else if (obj == "FunctionalScript.Runtime.JSON") {
                                                    if (methodName == "stringify") methodName = "Stringify";
                                                    else if (methodName == "parse") methodName = "Parse";
-                                                   obj = "FunctionalScript.Runtime.JSON";
-                                               } else if (obj == "BigInt") {
-                                                   obj = "FunctionalScript.Runtime.BigInt";
+                                               } else if (obj == "FunctionalScript.Runtime.BigInt") {
+                                                   // BigInt methods handled here if needed
                                                }
                                                gen.PushExpr($"{obj}.{methodName}"); .)
   | '[' Expression ']'                     (. string index = gen.PopExpr(); string obj = gen.PopExpr();
@@ -259,7 +253,34 @@ CallExpression                             (. string func, args = ""; List<strin
 MemberExpression                           (. string obj, member; .)
 = PrimaryExpression
   { '.' ident                              (. obj = gen.PopExpr();
-                                               gen.PushExpr($"{obj}.{t.val}"); .)
+                                               string methodName = t.val;
+                                               // Map JavaScript built-in methods to C# equivalents
+                                               if (obj == "FunctionalScript.Runtime.Object") {
+                                                   if (methodName == "keys") methodName = "Keys";
+                                                   else if (methodName == "values") methodName = "Values";
+                                                   else if (methodName == "entries") methodName = "Entries";
+                                                   else if (methodName == "assign") methodName = "Assign";
+                                                   else if (methodName == "freeze") methodName = "Freeze";
+                                                   else if (methodName == "seal") methodName = "Seal";
+                                                   else if (methodName == "is") methodName = "Is";
+                                               } else if (obj == "FunctionalScript.Runtime.Array") {
+                                                   if (methodName == "from") methodName = "From";
+                                                   else if (methodName == "of") methodName = "Of";
+                                                   else if (methodName == "isArray") methodName = "IsArray";
+                                               } else if (obj == "System.Math") {
+                                                   if (methodName == "abs") methodName = "Abs";
+                                                   else if (methodName == "pow") methodName = "Pow";
+                                                   else if (methodName == "max") methodName = "Max";
+                                                   else if (methodName == "min") methodName = "Min";
+                                                   else if (methodName == "floor") methodName = "Floor";
+                                                   else if (methodName == "ceil") methodName = "Ceil";
+                                                   else if (methodName == "round") methodName = "Round";
+                                                   else if (methodName == "sqrt") methodName = "Sqrt";
+                                               } else if (obj == "FunctionalScript.Runtime.JSON") {
+                                                   if (methodName == "stringify") methodName = "Stringify";
+                                                   else if (methodName == "parse") methodName = "Parse";
+                                               }
+                                               gen.PushExpr($"{obj}.{methodName}"); .)
   | '[' Expression ']'                     (. string index = gen.PopExpr(); obj = gen.PopExpr();
                                                gen.PushExpr($"{obj}[{index}]"); .)
   | '[' '+' Expression ']'                 (. string index = gen.PopExpr(); obj = gen.PopExpr();
@@ -268,7 +289,14 @@ MemberExpression                           (. string obj, member; .)
 .
 
 PrimaryExpression
-= ident                                    (. gen.PushExpr(t.val); .)
+= ident                                    (. string name = t.val;
+                                               // Map built-in object names to runtime equivalents
+                                               if (name == "Object") name = "FunctionalScript.Runtime.Object";
+                                               else if (name == "Array") name = "FunctionalScript.Runtime.Array";
+                                               else if (name == "Math") name = "System.Math";
+                                               else if (name == "JSON") name = "FunctionalScript.Runtime.JSON";
+                                               else if (name == "BigInt") name = "FunctionalScript.Runtime.BigInt";
+                                               gen.PushExpr(name); .)
 | Literal
 | ArrayLiteral
 | ObjectLiteral

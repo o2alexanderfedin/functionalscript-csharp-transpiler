@@ -338,15 +338,26 @@ BigIntLiteral
                                                gen.PushExpr($"FunctionalScript.Runtime.ParseBinaryBigInt(\"{val}\")"); .)
 .
 
-ArrayLiteral                               (. List<string> elements = new List<string>(); .)
-= '[' [ElementList<. out elements .>] ']'     (. gen.PushExpr($"new dynamic[] {{ {string.Join(", ", elements)} }}"); .)
+ArrayLiteral                               (. List<string> elements = new List<string>(); bool hasSpread = false; .)
+= '[' [ElementList<. out elements, out hasSpread .>] ']'     
+                                           (. 
+                                              if (hasSpread) {
+                                                  gen.PushExpr($"FunctionalScript.Runtime.SpreadArray({string.Join(", ", elements)})");
+                                              } else {
+                                                  gen.PushExpr($"new dynamic[] {{ {string.Join(", ", elements)} }}");
+                                              }
+                                           .)
 .
 
-ElementList<. out List<string> elements .>    (. elements = new List<string>(); .)
-= [ Expression                             (. elements.Add(gen.PopExpr()); .)
-    { ',' Expression                       (. elements.Add(gen.PopExpr()); .)
+ElementList<. out List<string> elements, out bool hasSpread .>    (. elements = new List<string>(); hasSpread = false; .)
+= [ ( "..." Expression                     (. elements.Add($"(dynamic[]){gen.PopExpr()}"); hasSpread = true; .)
+    | Expression                           (. elements.Add(gen.PopExpr()); .)
+    )
+    { ',' 
+      [ "..." Expression                   (. elements.Add($"(dynamic[]){gen.PopExpr()}"); hasSpread = true; .)
+      | Expression                         (. elements.Add(gen.PopExpr()); .)
+      ]
     }
-    [ ',' ]
   ]
 .
 
@@ -362,9 +373,10 @@ ObjectLiteral                              (. List<string> props = new List<stri
 
 PropertyList<. out List<string> props .>      (. props = new List<string>(); string key, value; .)
 = [ Property<. out key, out value .>          (. props.Add($"{{ {key}, {value} }}"); .)
-    { ',' Property<. out key, out value .>    (. props.Add($"{{ {key}, {value} }}"); .)
+    { ',' 
+      [ Property<. out key, out value .>      (. props.Add($"{{ {key}, {value} }}"); .)
+      ]
     }
-    [ ',' ]
   ]
 .
 

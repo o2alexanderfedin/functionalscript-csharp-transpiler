@@ -299,6 +299,34 @@ namespace FunctionalScript
             }
         }
         
+        public static dynamic[] SpreadArray(params object[] elements)
+        {
+            var result = new List<dynamic>();
+            foreach (var element in elements)
+            {
+                if (element is object[] arr)
+                {
+                    // This is a spread element (marked by being wrapped in an array)
+                    if (arr.Length == 1 && arr[0] is System.Collections.IEnumerable enumerable && !(arr[0] is string))
+                    {
+                        foreach (var item in enumerable)
+                        {
+                            result.Add(item);
+                        }
+                    }
+                    else
+                    {
+                        result.AddRange(arr);
+                    }
+                }
+                else
+                {
+                    result.Add(element);
+                }
+            }
+            return result.ToArray();
+        }
+        
         public static class BigInt
         {
             public static BigInteger From(dynamic value)

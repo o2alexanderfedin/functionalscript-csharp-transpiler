@@ -18,7 +18,10 @@ NC='\033[0m'
 if [[ "$BRANCH" =~ $PROTECTED_BRANCHES ]]; then
     echo -e "${RED}❌ ERROR: Direct push to '$BRANCH' branch is not allowed!${NC}"
     echo ""
-    echo -e "${YELLOW}📝 Proper Git Flow Workflow:${NC}"
+    echo -e "${YELLOW}💡 Using Claude Code? Use the git-master agent:${NC}"
+    echo -e "${GREEN}  @git-master push these changes using git flow${NC}"
+    echo ""
+    echo -e "${YELLOW}📝 Manual Git Flow Workflow:${NC}"
     echo ""
     
     if [[ "$BRANCH" == "develop" ]]; then
@@ -43,6 +46,8 @@ if [[ "$BRANCH" =~ $PROTECTED_BRANCHES ]]; then
     fi
     
     echo ""
+    echo -e "${YELLOW}🤖 Claude Code users: Use @git-master agent for automated git flow${NC}"
+    echo ""
     echo -e "${RED}Push blocked to maintain git flow integrity.${NC}"
     exit 1
 fi
@@ -52,6 +57,7 @@ if [[ "$BRANCH" =~ ^feature/ ]]; then
     echo -e "${GREEN}✓ Pushing feature branch: $BRANCH${NC}"
     echo -e "${BLUE}ℹ️  Remember to finish your feature when ready:${NC}"
     echo -e "   ${GREEN}git flow feature finish ${BRANCH#feature/}${NC}"
+    echo -e "   ${YELLOW}Claude Code: @git-master finish this feature${NC}"
 fi
 
 # Validate release branch

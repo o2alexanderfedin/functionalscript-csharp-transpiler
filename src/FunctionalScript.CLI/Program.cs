@@ -66,21 +66,36 @@ namespace FunctionalScript.CLI
                 if (outputFile == null)
                 {
                     string outputPath;
+                    string dirName = Path.GetFileName(Path.GetDirectoryName(inputFile.FullName) ?? "");
                     
-                    // Check if this is a test file (starts with "test" or contains ".test.")
-                    string fileName = inputFile.Name;
-                    if (fileName.StartsWith("test", StringComparison.OrdinalIgnoreCase) || 
-                        fileName.Contains(".test.", StringComparison.OrdinalIgnoreCase))
+                    // Check if file is in test-files directory
+                    if (dirName.Equals("test-files", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Output test files to test-output directory
-                        string testOutputDir = Path.Combine(Path.GetDirectoryName(inputFile.FullName) ?? ".", "test-output", "transpiled");
-                        Directory.CreateDirectory(testOutputDir);
-                        outputPath = Path.Combine(testOutputDir, Path.GetFileNameWithoutExtension(inputFile.Name) + ".cs");
+                        // Output to transpiled subdirectory for test-files
+                        string transpiledDir = Path.Combine(Path.GetDirectoryName(inputFile.FullName) ?? ".", "transpiled");
+                        Directory.CreateDirectory(transpiledDir);
+                        outputPath = Path.Combine(transpiledDir, Path.GetFileNameWithoutExtension(inputFile.Name) + ".cs");
                     }
                     else
                     {
-                        // Regular output - same directory as input
-                        outputPath = Path.ChangeExtension(inputFile.FullName, ".cs");
+                        // Check if this is a test file (starts with "test" or contains ".test.")
+                        string fileName = inputFile.Name;
+                        bool isInTestOutput = inputFile.DirectoryName?.Contains("test-output") ?? false;
+                        
+                        if (!isInTestOutput && 
+                            (fileName.StartsWith("test", StringComparison.OrdinalIgnoreCase) || 
+                             fileName.Contains(".test.", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            // Output test files to test-output directory (only if not already in test-output)
+                            string testOutputDir = Path.Combine(Path.GetDirectoryName(inputFile.FullName) ?? ".", "test-output", "transpiled");
+                            Directory.CreateDirectory(testOutputDir);
+                            outputPath = Path.Combine(testOutputDir, Path.GetFileNameWithoutExtension(inputFile.Name) + ".cs");
+                        }
+                        else
+                        {
+                            // Regular output - same directory as input
+                            outputPath = Path.ChangeExtension(inputFile.FullName, ".cs");
+                        }
                     }
                     
                     outputFile = new FileInfo(outputPath);

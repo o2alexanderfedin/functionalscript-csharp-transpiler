@@ -10,6 +10,12 @@ x86/
 [Ll]og/
 [Ll]ogs/
 
+# Test and coverage files
+test-files/
+coverage-report/
+coverage-summary.md
+src/temp.cs
+
 # Visual Studio temporary files
 .vs/
 *.user
